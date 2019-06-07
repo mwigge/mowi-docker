@@ -1,0 +1,49 @@
+version: "3"
+services:
+  mongo1:
+    hostname: mongo1
+    container_name: mongo1
+    image: mongo:latest
+    volumes:
+      - mongo1:/data/db
+    networks: 
+      - dockernet
+    expose:
+      - 27017
+    restart: always
+    entrypoint: [ "/usr/bin/mongod", "--bind_ip_all", "--replSet", "rs0", "--journal","--dbpath","/data/db","--smallfiles"]
+  mongo2:
+    hostname: mongo2
+    container_name: mongo2
+    image: mongo:latest
+    depends_on: 
+      - mongo1
+    volumes:
+      - mongo2:/data/db
+    networks: 
+      - dockernet
+    expose:
+      - 27017
+    restart: always
+    entrypoint: [ "/usr/bin/mongod", "--bind_ip_all", "--replSet", "rs0","--journal","--dbpath","/data/db","--smallfiles" ]
+  mongo3:
+    hostname: mongo3
+    container_name: mongo3
+    image: mongo:latest
+    depends_on: 
+      - mongo1
+      - mongo2
+    volumes:
+      - mongo3:/data/db
+    networks: 
+      - dockernet
+    expose:
+      - 27017
+    restart: always
+    entrypoint: [ "/usr/bin/mongod", "--bind_ip_all", "--replSet", "rs0","--journal","--dbpath","/data/db","--smallfiles"]
+networks: 
+  dockernet:
+volumes: 
+  mongo1:
+  mongo2:
+  mongo3:

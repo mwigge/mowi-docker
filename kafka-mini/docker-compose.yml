@@ -1,0 +1,144 @@
+version: "3.5"
+services:
+  zk1:
+    image: confluentinc/cp-zookeeper:latest
+    hostname: zk1
+    container_name: zk1
+    volumes:
+      - zk1-log:/var/lib/zookeeper/log
+      - zk1-data:/var/lib/zookeeper/data
+    networks:
+      - dockernet
+    environment:
+      - ZOOKEEPER_SERVER_ID=1
+      - ZOOKEEPER_CLIENT_PORT=2181
+      - ZOOKEEPER_TICK_TIME=2000
+      - ZOOKEEPER_INIT_LIMIT=5
+      - ZOOKEEPER_SYNC_LIMIT=2
+      - ZOOKEEPER_SERVERS=zk1:2888:3888
+  
+  kafka1:
+    image: "confluentinc/cp-enterprise-kafka:latest"
+    hostname: kafka1
+    container_name: kafka1
+    networks:
+      - dockernet
+    volumes:
+      - kafka1-data:/var/lib/kafka/data
+    environment:
+      KAFKA_BROKER_ID: 101
+      KAFKA_ZOOKEEPER_CONNECT: zk1:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka1:9092
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_DELETE_TOPIC_ENABLE: "true"
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_METRIC_REPORTERS: "io.confluent.metrics.reporter.ConfluentMetricsReporter"
+      CONFLUENT_METRICS_REPORTER_BOOTSTRAP_SERVERS: "kafka1:9092"
+   
+  connect:
+    image: confluentinc/cp-kafka-connect:latest
+    hostname: connect1
+    container_name: connect1
+    ports:
+      - "8083:8083"
+    volumes:
+      - connect1-data:/data
+    networks:
+      - dockernet
+    environment:
+      CONNECT_PRODUCER_INTERCEPTOR_CLASSES: io.confluent.monitoring.clients.interceptor.MonitoringProducerInterceptor
+      CONNECT_CONSUMER_INTERCEPTOR_CLASSES: io.confluent.monitoring.clients.interceptor.MonitoringConsumerInterceptor
+      CONNECT_BOOTSTRAP_SERVERS: kafka1:9092
+      CONNECT_REST_PORT: 8083
+      CONNECT_GROUP_ID: "connect"
+      CONNECT_CONFIG_STORAGE_TOPIC: "connect-config"
+      CONNECT_OFFSET_STORAGE_TOPIC: "connect-offsets"
+      CONNECT_STATUS_STORAGE_TOPIC: "connect-status"
+      CONNECT_REPLICATION_FACTOR: 1
+      CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR: 1
+      CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR: 1
+      CONNECT_STATUS_STORAGE_REPLICATION_FACTOR: 1
+      CONNECT_KEY_CONVERTER: "io.confluent.connect.avro.AvroConverter"
+      CONNECT_VALUE_CONVERTER: "io.confluent.connect.avro.AvroConverter"
+      CONNECT_KEY_CONVERTER_SCHEMA_REGISTRY_URL: "http://schema1:8081"
+      CONNECT_VALUE_CONVERTER_SCHEMA_REGISTRY_URL: "http://schema1:8081"
+      CONNECT_INTERNAL_KEY_CONVERTER: "org.apache.kafka.connect.json.JsonConverter"
+      CONNECT_INTERNAL_VALUE_CONVERTER: "org.apache.kafka.connect.json.JsonConverter"
+      CONNECT_REST_ADVERTISED_HOST_NAME: "connect"
+      CONNECT_LOG4J_ROOT_LOGLEVEL: INFO
+      CONNECT_LOG4J_LOGGERS: org.reflections=ERROR
+      CONNECT_PLUGIN_PATH: /usr/share/java
+      CONNECT_REST_HOST_NAME: "connect"
+  control-center:
+    image: confluentinc/cp-enterprise-control-center:latest
+    hostname: control-center1
+    container_name: control-center1
+    restart: always
+    networks:
+      - dockernet
+    ports:
+      - "9021:9021"
+    environment:
+      CONTROL_CENTER_BOOTSTRAP_SERVERS: kafka1:9092
+      CONTROL_CENTER_ZOOKEEPER_CONNECT: zk1:2181
+      CONTROL_CENTER_REPLICATION_FACTOR: 1
+      CONTROL_CENTER_MONITORING_INTERCEPTOR_TOPIC_REPLICATION: 1
+      CONTROL_CENTER_INTERNAL_TOPICS_REPLICATION: 1
+      CONTROL_CENTER_COMMAND_TOPIC_REPLICATION: 1
+      CONTROL_CENTER_METRICS_TOPIC_REPLICATION: 1
+      CONTROL_CENTER_STREAMS_NUM_STREAM_THREADS: 1
+      CONTROL_CENTER_STREAMS_CONSUMER_REQUEST_TIMEOUT_MS: "960032"
+      CONTROL_CENTER_CONNECT_CLUSTER: "connect1:8083"
+      CONTROL_CENTER_SCHEMA_REGISTRY_URL: "http://schema1:8081"
+
+  mongo1:
+    hostname: mongo1
+    container_name: mongo1
+    image: mongo:latest
+    volumes:
+      - mongo1:/data/db
+    networks: 
+      - dockernet
+    expose:
+      - 27017
+    restart: always
+    entrypoint: [ "/usr/bin/mongod", "--bind_ip_all", "--replSet", "rs0", "--journal","--dbpath","/data/db","--smallfiles"]
+  mongo2:
+    hostname: mongo2
+    container_name: mongo2
+    image: mongo:latest
+    depends_on: 
+      - mongo1
+    volumes:
+      - mongo2:/data/db
+    networks: 
+      - dockernet
+    expose:
+      - 27017
+    restart: always
+    entrypoint: [ "/usr/bin/mongod", "--bind_ip_all", "--replSet", "rs0","--journal","--dbpath","/data/db","--smallfiles" ]
+  mongo3:
+    hostname: mongo3
+    container_name: mongo3
+    image: mongo:latest
+    depends_on: 
+      - mongo1
+      - mongo2
+    volumes:
+      - mongo3:/data/db
+    networks: 
+      - dockernet
+    expose:
+      - 27017
+    restart: always
+    entrypoint: [ "/usr/bin/mongod", "--bind_ip_all", "--replSet", "rs0","--journal","--dbpath","/data/db","--smallfiles"]
+volumes: 
+  mongo1:
+  mongo2:
+  mongo3:
+  zk1-log:
+  zk1-data:
+  kafka1-data:
+  connect1-data:
+networks:
+ dockernet:
