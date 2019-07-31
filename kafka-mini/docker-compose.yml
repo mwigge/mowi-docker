@@ -127,7 +127,6 @@ volumes:
   zk1-data:
   kafka1-data:
   connect1-data:
-  dev-data:
 networks:
  kafka-net:
 
