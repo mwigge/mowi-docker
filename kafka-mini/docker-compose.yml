@@ -8,7 +8,9 @@ services:
       - zk1-log:/var/lib/zookeeper/log
       - zk1-data:/var/lib/zookeeper/data
     networks:
-      - dockernet
+      - kafka-net
+    ports:
+      - 2181:2181
     environment:
       - ZOOKEEPER_SERVER_ID=1
       - ZOOKEEPER_CLIENT_PORT=2181
@@ -22,7 +24,9 @@ services:
     hostname: kafka1
     container_name: kafka1
     networks:
-      - dockernet
+      - kafka-net
+    ports:
+      - 9092:9092
     volumes:
       - kafka1-data:/var/lib/kafka/data
     environment:
@@ -40,11 +44,11 @@ services:
     hostname: connect1
     container_name: connect1
     ports:
-      - "8083:8083"
+      - 8083:8083
     volumes:
       - connect1-data:/data
     networks:
-      - dockernet
+      - kafka-net
     environment:
       CONNECT_PRODUCER_INTERCEPTOR_CLASSES: io.confluent.monitoring.clients.interceptor.MonitoringProducerInterceptor
       CONNECT_CONSUMER_INTERCEPTOR_CLASSES: io.confluent.monitoring.clients.interceptor.MonitoringConsumerInterceptor
@@ -75,9 +79,9 @@ services:
     container_name: control-center1
     restart: always
     networks:
-      - dockernet
+      - kafka-net
     ports:
-      - "9021:9021"
+      - 9021:9021
     environment:
       CONTROL_CENTER_BOOTSTRAP_SERVERS: kafka1:9092
       CONTROL_CENTER_ZOOKEEPER_CONNECT: zk1:2181
@@ -91,54 +95,39 @@ services:
       CONTROL_CENTER_CONNECT_CLUSTER: "connect1:8083"
       CONTROL_CENTER_SCHEMA_REGISTRY_URL: "http://schema1:8081"
 
-  mongo1:
-    hostname: mongo1
-    container_name: mongo1
-    image: mongo:latest
-    volumes:
-      - mongo1:/data/db
-    networks: 
-      - dockernet
-    expose:
-      - 27017
-    restart: always
-    entrypoint: [ "/usr/bin/mongod", "--bind_ip_all", "--replSet", "rs0", "--journal","--dbpath","/data/db","--smallfiles"]
-  mongo2:
-    hostname: mongo2
-    container_name: mongo2
-    image: mongo:latest
-    depends_on: 
-      - mongo1
-    volumes:
-      - mongo2:/data/db
-    networks: 
-      - dockernet
-    expose:
-      - 27017
-    restart: always
-    entrypoint: [ "/usr/bin/mongod", "--bind_ip_all", "--replSet", "rs0","--journal","--dbpath","/data/db","--smallfiles" ]
-  mongo3:
-    hostname: mongo3
-    container_name: mongo3
-    image: mongo:latest
-    depends_on: 
-      - mongo1
-      - mongo2
-    volumes:
-      - mongo3:/data/db
-    networks: 
-      - dockernet
-    expose:
-      - 27017
-    restart: always
-    entrypoint: [ "/usr/bin/mongod", "--bind_ip_all", "--replSet", "rs0","--journal","--dbpath","/data/db","--smallfiles"]
-volumes: 
-  mongo1:
-  mongo2:
-  mongo3:
+  schema1:
+    image: "confluentinc/cp-schema-registry:latest"
+    hostname: schema1
+    container_name: schema1
+    networks:
+      - kafka-net
+    ports:
+      - 8081:8081
+    environment:
+      SCHEMA_REGISTRY_HOST_NAME: schema1
+      SCHEMA_REGISTRY_KAFKASTORE_CONNECTION_URL: zk1:2181
+      SCHEMA_REGISTRY_LISTENERS: http://schema1:8081
+
+  rest1:
+    image: confluentinc/cp-kafka-rest:latest
+    hostname: rest1
+    container_name: rest1
+    networks:
+      - kafka-net
+    ports:
+      - 8082:8082
+    environment:
+      KAFKA_REST_HOST_NAME: rest1
+      KAFKA_REST_BOOTSTRAP_SERVERS: kafka1:9092
+      KAFKA_REST_LISTENERS: "http://0.0.0.0:8082"
+      KAFKA_REST_SCHEMA_REGISTRY_URL: "http://schema1:8081"
+
+volumes:
   zk1-log:
   zk1-data:
   kafka1-data:
   connect1-data:
+  dev-data:
 networks:
- dockernet:
+ kafka-net:
+
