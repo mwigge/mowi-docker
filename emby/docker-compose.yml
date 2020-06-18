@@ -1,0 +1,28 @@
+version: "2.1"
+services:
+        emby:
+                image: linuxserver/emby
+                container_name: emby
+                environment:
+                        - PUID=1000
+                        - PGID=1000
+                        - TZ=Europe/Stockholm
+                        - UMASK_SET=022 #optional
+                volumes:
+                        - /home/morgan/docker/emby/config:/config
+                        - /mnt/nfs/media/sorterad_tv:/data/tvshows
+                        - /mnt/stor/4k_tv:/data/tvshows1
+                        - /mnt/nfs/media/sorterad_film:/data/movies
+                        - /mnt/stor/4k_film:/data/movies1
+                        - /mnt/nfs/media/sorterad_anime:/data/anime
+                        - /mnt/nfs/media/sorterad_ebooks:/data/ebooks
+                        - /mnt/nfs/media/sorterad_comics:/data/comics
+                        - /mnt/nfs/media/sorterad_musik:/data/music
+                        - /home/morgan/docker/emby/transcode:/transcode #optional
+
+                ports:
+                        - 8196:8196
+                        - 8930:8930 #optional
+                restart: unless-stopped
+
+
